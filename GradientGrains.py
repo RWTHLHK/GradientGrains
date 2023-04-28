@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.spatial
-from scipy.spatial import Voronoi, voronoi_plot_2d
+from scipy.spatial import Voronoi, voronoi_plot_2d, KDTree
 from shapely.geometry import Polygon
 
 
@@ -9,10 +9,9 @@ def size_gradient(d1, d2, x, y, res_x, res_y):
     return (d2 - d1) / res_y * y + d1
 
 
-def gen_voronoi(rve_x, rve_y, r, d1, d2):
+def seeding(rve_x: float, rve_y: float, res: float, dmin: float, dmax: float) -> np.ndarray:
     # Rasterization
-    dx = r / np.sqrt(2)
-    res_x, res_y = int(rve_x / dx), int(rve_y / dx)
+    res_x, res_y = int(rve_x / res), int(rve_y / res)
     init_len = res_x * res_y
     grid_ids = np.arange(init_len)
     grid = grid_ids.reshape(res_x, res_y)
@@ -20,7 +19,7 @@ def gen_voronoi(rve_x, rve_y, r, d1, d2):
     # precompute sizes
     box_x_indices = np.array(grid / res_x, dtype=int)
     box_y_indices = np.array(grid - box_x_indices * res_x, dtype=int)
-    ds = size_gradient(d1, d2, box_x_indices, box_y_indices, res_x, res_y)
+    ds = size_gradient(dmin, dmax, box_x_indices, box_y_indices, res_x, res_y)
 
     # store chosen points
     seeds = []
@@ -41,8 +40,18 @@ def gen_voronoi(rve_x, rve_y, r, d1, d2):
         grid_ids = grid.flatten()
         grid_ids = grid_ids[grid_ids >= 0]
 
-    seeds = np.array(seeds) * dx
-    vor = Voronoi(seeds)  # ridge_dict points to vertices
+    seeds = np.array(seeds) * res
+    return seeds
+
+
+def gen_periodic_voronoi(seeds: np.ndarray, rve_x: float) -> scipy.spatial.Voronoi:
+    left_side_seeds = seeds.copy()
+    left_side_seeds[:, 0] = left_side_seeds[:, 0] - rve_x
+    right_side_seeds = seeds.copy()
+    right_side_seeds[:, 0] = right_side_seeds[:, 0] + rve_x
+    seeds = np.vstack([left_side_seeds, seeds])
+    seeds = np.vstack([seeds, right_side_seeds])
+    vor = Voronoi(seeds)
     return vor
 
 
@@ -139,36 +148,44 @@ def get_grains(vor: scipy.spatial.Voronoi, rve_x: float, rve_y: float) -> list:
     box = Polygon([[min_x, min_y], [min_x, max_y], [max_x, max_y], [max_x, min_y]])
 
     grains = []
+    grain_ids = []
+    i = 0
     for region in regions:
+        grain_id = i % int(len(vor.points) / 3)
         polygon = vertices[region]
         # Clipping polygon
         poly = Polygon(polygon)
-        poly = poly.intersection(box)
+        poly = poly.intersection(box) # needs modification
         polygon = [p for p in poly.exterior.coords]
-        grains.append(polygon)
+        if len(polygon) > 0:
+            grains.append(polygon)
+            grain_ids.append(grain_id)
+        i += 1
 
-    return grains
+    return grains, grain_ids
 
 
 if __name__ == "__main__":
-
-    vor = gen_voronoi(10, 10, 0.5, 1, 5)
-    voronoi_plot_2d(vor, show_vertices=True, show_points=True)
-    plt.xlim([0, 10])
-    plt.ylim([0, 10])
-    plt.savefig("test_grains.png")
-    plt.close()
-
-    grains = get_grains(vor=vor, rve_x=10, rve_y=10)
-    # colorize
-    for grain in grains:
-        plt.fill(*zip(*grain), alpha=0.4)
-
-    plt.plot(vor.points[:, 0], vor.points[:, 1], 'ko')
-    plt.axis('equal')
-    plt.xlim(0, 10)
-    plt.ylim(0, 10)
-
-    plt.savefig('finite_voro.png')
-    plt.show()
+    seeds = seeding(10, 10, 0.5, 1, 5)
+    vor = gen_periodic_voronoi(seeds=seeds, rve_x=10)
+    grains, grain_ids = get_grains(vor=vor, rve_x=10, rve_y=10)
+    print(grains)
+    print(grain_ids)
+    # voronoi_plot_2d(vor)
+    # plt.xlim([0, 10])
+    # plt.ylim([0, 10])
+    # plt.show()
+    #
+    # grains = get_grains(vor=vor, rve_x=10, rve_y=10)
+    #
+    # for grain in grains:
+    #     plt.fill(*zip(*grain), alpha=0.4)
+    #
+    # plt.plot(vor.points[:, 0], vor.points[:, 1], 'ko')
+    # plt.axis('equal')
+    # plt.xlim(0, 10)
+    # plt.ylim(0, 10)
+    #
+    # plt.savefig('voronoi.png')
+    # plt.show()
 
