@@ -153,6 +153,7 @@ def get_grains(vor: scipy.spatial.Voronoi, rve_x: float, rve_y: float) -> list:
     for region in regions:
         grain_id = i % int(len(vor.points) / 3)
         polygon = vertices[region]
+        # polygon = remove_close_vertices(polygon, 0.5)
         # Clipping polygon
         poly = Polygon(polygon)
         poly = poly.intersection(box) # needs modification
@@ -164,17 +165,36 @@ def get_grains(vor: scipy.spatial.Voronoi, rve_x: float, rve_y: float) -> list:
 
     return grains, grain_ids
 
+def fix_vor(vor):
+    vertices = vor.vertices
+    for i, (p1, p2) in enumerate(vor.ridge_points):
+        ridge_vertices = vor.ridge_vertices[i]
+        if ridge_vertices[0] != -1 and ridge_vertices[1] != -1:
+            length = ((vor.vertices[ridge_vertices[0]] - vor.vertices[ridge_vertices[1]]) ** 2).sum() ** 0.5
+            if length < 0.5:
+                new_index = min(ridge_vertices[0], ridge_vertices[1])
+                vertices[ridge_vertices[0]] = vertices[ridge_vertices[1]] = vertices[new_index]
+        
+        
 
 if __name__ == "__main__":
     seeds = seeding(10, 10, 0.5, 1, 5)
-    vor = gen_periodic_voronoi(seeds=seeds, rve_x=10)
-    grains, grain_ids = get_grains(vor=vor, rve_x=10, rve_y=10)
-    print(grains)
-    print(grain_ids)
+    vor = Voronoi(seeds)
+    print(vor.vertices)
     # voronoi_plot_2d(vor)
     # plt.xlim([0, 10])
     # plt.ylim([0, 10])
-    # plt.show()
+    # plt.savefig("old_vor.png")
+    # plt.close()
+    fix_vor(vor=vor)
+    # vor = gen_periodic_voronoi(seeds=seeds, rve_x=10)
+    # grains, grain_ids = get_grains(vor=vor, rve_x=10, rve_y=10)
+
+    print(vor.vertices)
+    voronoi_plot_2d(vor)
+    plt.xlim([0, 10])
+    plt.ylim([0, 10])
+    plt.savefig("new_vor.png")
     #
     # grains = get_grains(vor=vor, rve_x=10, rve_y=10)
     #
