@@ -2,7 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from GradientGrains import *
 import pyvista as pv
-import pandas as pd
+
+
+# import pandas as pd
 
 
 def mesh_2d(grains: list, grain_ids: list) -> pv.PolyData:
@@ -27,17 +29,23 @@ def adaptive_refinement(mesh: pv.PolyData, degree: int) -> pv.PolyData:
 if __name__ == "__main__":
     seeds = seeding(10, 10, 0.5, 1, 5)
     vor = gen_periodic_voronoi(seeds=seeds, rve_x=10)
-    voronoi_plot_2d(vor, show_vertices=True, show_points=True)
-    plt.xlim([0, 10])
-    plt.ylim([0, 10])
-    plt.savefig("test_grains.png")
-    plt.close()
+    fix_vor(vor=vor, min_dis=1)
+    grains, grain_ids = get_grains(vor=vor, rve_x=10, rve_y=10)
 
-    grains, grain_ids = get_grains(vor, 10, 10)
-    mesh = mesh_2d(grains=grains, grain_ids=grain_ids)
-    mesh.plot(show_edges=True)
+    mesh = mesh_2d(grains, grain_ids)
+    # mesh.plot(show_edges=True)
 
-    refined_mesh = adaptive_refinement(mesh=mesh, degree=2)
+    mesh.triangulate(inplace=True)
+    areas = mesh.compute_cell_sizes()['Area']
+    sizes = mesh.compute_cell_sizes()
+
+    refined_mesh = pv.UnstructuredGrid()
+    for i in range(mesh.n_cells):
+        cell = mesh.extract_cells(i)
+        triangle = cell.extract_geometry()
+        if areas[i] > 1:
+            triangle.subdivide(nsub=1, inplace=True)
+
+        refined_mesh = refined_mesh + triangle
+
     refined_mesh.plot(show_edges=True)
-
-
