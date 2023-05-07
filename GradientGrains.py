@@ -193,12 +193,52 @@ def fix_vor(vor: scipy.spatial.Voronoi, min_dis: float):
 
 
 if __name__ == "__main__":
-    # min_x = -10
-    # min_y = 0
-    # max_x = 20
-    # max_y = 10
-    # seeds = seeding(10, 10, 0.5, 1, 5)
-    # vor = gen_periodic_voronoi(seeds=seeds, rve_x=10)
+    min_x = -10
+    min_y = 0
+    max_x = 20
+    max_y = 10
+    rve_x = 10
+    seeds = seeding(10, 10, 0.5, 1, 5)
+    # vor = Voronoi(seeds)
+    # print(vor.vertices)
+    left_side_seeds = seeds.copy()
+    left_side_seeds[:, 0] = left_side_seeds[:, 0] - rve_x
+    right_side_seeds = seeds.copy()
+    right_side_seeds[:, 0] = right_side_seeds[:, 0] + rve_x
+
+    periodic_seeds = np.vstack([left_side_seeds, seeds])
+    periodic_seeds = np.vstack([periodic_seeds, right_side_seeds])
+    fig, ax = plt.subplots()
+    # ax1.scatter(left_side_seeds[:, 0], left_side_seeds[:, 1])
+    # ax2.scatter(seeds[:, 0], seeds[:, 1])
+    # ax3.scatter(right_side_seeds[:, 0], right_side_seeds[:, 1])
+    # plt.savefig("periodic_seeds.png")
+    ax.set_xticks(np.arange(-10, 22, 2))
+    ax.set_yticks(np.arange(0, 12, 2))
+    ax.set_xlim(-10, 20)
+    ax.set_ylim(0, 10)
+    ax.set_aspect("equal")
+    ax.scatter(periodic_seeds[:, 0], periodic_seeds[:, 1])
+    ax.plot([0, 0], [0, 10], color='r')
+    ax.plot([10, 10], [0, 10], color='r')
+    ax.plot([-10, -10], [0, 10], color='r')
+    ax.plot([20, 20], [0, 10], color='r')
+    plt.show()
+    plt.close()
+    fig, ax = plt.subplots()
+    vor = gen_periodic_voronoi(seeds=seeds, rve_x=10)
+    ax.set_xticks(np.arange(-10, 22, 2))
+    ax.set_yticks(np.arange(0, 12, 2))
+    ax.set_xlim(-10, 20)
+    ax.set_ylim(0, 10)
+    ax.set_aspect("equal")
+    ax.plot([0, 0], [-1, 11], color='r')
+    ax.plot([10, 10], [-1, 11], color='r')
+    ax.plot([-10, -10], [-1, 11], color='r')
+    ax.plot([20, 20], [-1, 11], color='r')
+    voronoi_plot_2d(vor, ax=ax)
+    plt.show()
+    # plt.savefig("periodic_voronoi.png")
     # fix_vor(vor=vor, min_dis=1)
     # regions, vertices = voronoi_finite_polygons_2d(vor=vor)
     # region = regions[0]
